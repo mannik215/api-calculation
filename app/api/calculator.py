@@ -12,6 +12,6 @@ async def calculate_endpoint(request: CalculationRequest):
         result =calculate(request.a, request.b, request.operation)
         
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail="Invalid calculation input")
     
     return CalculationResponse(result=result)
