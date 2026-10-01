@@ -1,18 +1,17 @@
 pipeline {
 
-    // Выполняем Pipeline на доступном Jenkins-агенте.
+
     agent any
 
-    // Переменные, доступные во всех этапах.
+
     environment {
-        // Имя Docker-образа приложения.
+
         IMAGE_NAME = "calculate-api"
     }
 
     stages {
 
-        // Jenkins уже автоматически скачивает код из GitHub,
-        // но здесь выводим информацию о текущем commit.
+
         stage('Checkout') {
             steps {
                 sh '''
@@ -25,8 +24,7 @@ pipeline {
             }
         }
 
-        // Создаём изолированное Python-окружение и устанавливаем
-        // зависимости, нужные для тестирования.
+
         stage('Install dependencies') {
             steps {
                 sh '''
@@ -42,8 +40,6 @@ pipeline {
             }
         }
 
-        // Запускаем тесты. Если pytest завершится с ошибкой,
-        // следующие этапы, включая Docker build и deploy, не запустятся.
         stage('Test') {
             steps {
                 sh '''
@@ -54,11 +50,6 @@ pipeline {
             }
         }
 
-        // Формируем новую версию на основе номера сборки Jenkins.
-        //
-        // Build #1 -> 1.0.1
-        // Build #2 -> 1.0.2
-        // Build #3 -> 1.0.3
         stage('Generate version') {
             steps {
                 script {
@@ -69,14 +60,11 @@ pipeline {
                     echo "===== Application version ====="
                     echo "${APP_VERSION}"
 
-                    # VERSION попадёт внутрь Docker-образа,
-                    # потому что Dockerfile содержит COPY VERSION ./VERSION.
                     echo "${APP_VERSION}" > VERSION
                 '''
             }
         }
 
-        // Собираем новую версию приложения и создаём тег latest.
         stage('Build Docker') {
             steps {
                 sh '''
@@ -94,18 +82,14 @@ pipeline {
             }
         }
 
-        // Удаляем старый контейнер и запускаем новый.
         stage('Deploy') {
             steps {
                 sh '''
                     echo "===== Deploying Calculator API ====="
 
-                    # Если контейнера calculator ещё нет,
-                    # команда завершится ошибкой, но || true не даст
-                    # Jenkins считать это ошибкой Pipeline.
+
                     docker rm -f calculator || true
 
-                    # Запускаем новую версию API.
                     docker run -d \
                         --name calculator \
                         -p 8000:8000 \
@@ -116,7 +100,6 @@ pipeline {
             }
         }
 
-        // Проверяем, что новый контейнер реально отвечает по /health.
         stage('Verify deployment') {
             steps {
                 sh '''
