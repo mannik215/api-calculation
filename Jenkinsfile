@@ -1,23 +1,20 @@
 pipeline {
-    // Где Jenkins может выполнять Pipeline.
-    // any = на любом доступном агенте.
+
+    // Выполняем Pipeline на доступном Jenkins-агенте.
     agent any
 
-    // Глобальные переменные окружения.
+    // Переменные, доступные во всех этапах.
     environment {
-        // Имя собираемого Docker-образа.
+        // Имя Docker-образа приложения.
         IMAGE_NAME = "calculate-api"
     }
 
-    // Здесь находятся этапы CI.
     stages {
 
+        // Jenkins уже автоматически скачивает код из GitHub,
+        // но здесь выводим информацию о текущем commit.
         stage('Checkout') {
             steps {
-                // Jenkins при использовании "Pipeline script from SCM"
-                // уже скачивает репозиторий автоматически.
-                //
-                // Здесь просто проверяем, какой код был получен.
                 sh '''
                     echo "===== Git information ====="
                     git log -1 --oneline
@@ -28,10 +25,10 @@ pipeline {
             }
         }
 
+        // Создаём изолированное Python-окружение и устанавливаем
+        // зависимости, нужные для тестирования.
         stage('Install dependencies') {
             steps {
-                // Создаём отдельное виртуальное окружение
-                // именно для текущей CI-сборки.
                 sh '''
                     echo "===== Creating Python venv ====="
 
@@ -45,14 +42,10 @@ pipeline {
             }
         }
 
+        // Запускаем тесты. Если pytest завершится с ошибкой,
+        // следующие этапы, включая Docker build и deploy, не запустятся.
         stage('Test') {
             steps {
-                // Запускаем pytest.
-                //
-                // Если хотя бы один тест завершится ошибкой,
-                // pytest вернёт ненулевой exit code.
-                //
-                // Jenkins автоматически остановит Pipeline.
                 sh '''
                     echo "===== Running tests ====="
 
@@ -61,42 +54,111 @@ pipeline {
             }
         }
 
+        // Формируем новую версию на основе номера сборки Jenkins.
+        //
+        // Build #1 -> 1.0.1
+        // Build #2 -> 1.0.2
+        // Build #3 -> 1.0.3
+        stage('Generate version') {
+            steps {
+                script {
+                    env.APP_VERSION = "1.0.${env.BUILD_NUMBER}"
+                }
+
+                sh '''
+                    echo "===== Application version ====="
+                    echo "${APP_VERSION}"
+
+                    # VERSION попадёт внутрь Docker-образа,
+                    # потому что Dockerfile содержит COPY VERSION ./VERSION.
+                    echo "${APP_VERSION}" > VERSION
+                '''
+            }
+        }
+
+        // Собираем новую версию приложения и создаём тег latest.
         stage('Build Docker') {
             steps {
                 sh '''
-                    echo "===== Reading application version ====="
+                    echo "===== Building Docker image ====="
+                    echo "Image: ${IMAGE_NAME}:${APP_VERSION}"
 
-                    VERSION=$(cat VERSION)
-
-                    echo "Building ${IMAGE_NAME}:${VERSION}"
-
-                    # Docker читает Dockerfile приложения
-                    # из корня репозитория.
                     docker build \
-                        -t ${IMAGE_NAME}:${VERSION} \
+                        -t ${IMAGE_NAME}:${APP_VERSION} \
                         .
 
-                    # Тот же образ получает дополнительный тег latest.
                     docker tag \
-                        ${IMAGE_NAME}:${VERSION} \
+                        ${IMAGE_NAME}:${APP_VERSION} \
                         ${IMAGE_NAME}:latest
+                '''
+            }
+        }
+
+        // Удаляем старый контейнер и запускаем новый.
+        stage('Deploy') {
+            steps {
+                sh '''
+                    echo "===== Deploying Calculator API ====="
+
+                    # Если контейнера calculator ещё нет,
+                    # команда завершится ошибкой, но || true не даст
+                    # Jenkins считать это ошибкой Pipeline.
+                    docker rm -f calculator || true
+
+                    # Запускаем новую версию API.
+                    docker run -d \
+                        --name calculator \
+                        -p 8000:8000 \
+                        ${IMAGE_NAME}:${APP_VERSION}
+
+                    echo "Deployed version: ${APP_VERSION}"
+                '''
+            }
+        }
+
+        // Проверяем, что новый контейнер реально отвечает по /health.
+        stage('Verify deployment') {
+            steps {
+                sh '''
+                    echo "===== Checking deployed application ====="
+
+                    # Даём Uvicorn несколько секунд на запуск.
+                    sleep 5
+
+                    python3 - <<'PY'
+import json
+import urllib.request
+
+response = urllib.request.urlopen(
+    "http://host.docker.internal:8000/health",
+    timeout=10,
+)
+
+data = json.load(response)
+
+print("Health response:", data)
+
+if data["status"] != "ok":
+    raise SystemExit("Health check failed")
+
+print("Deployment verification passed.")
+PY
                 '''
             }
         }
     }
 
-    // Действия после завершения stages.
     post {
         success {
-            echo 'SUCCESS: tests passed and Docker image was built.'
+            echo 'SUCCESS: tests passed, image built, application deployed.'
         }
 
         failure {
-            echo 'FAILURE: check Console Output.'
+            echo 'FAILURE: check Jenkins Console Output.'
         }
 
         always {
-            echo 'Calculator CI pipeline finished.'
+            echo 'Calculator CI/CD pipeline finished.'
         }
     }
 }
