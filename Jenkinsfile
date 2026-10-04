@@ -63,18 +63,7 @@ pipeline {
                 '''
             }
         }
-        // stage('Security - Dependency Audit') {
-        //     steps {
-        //         sh '''
-        //             echo "===== Python dependency audit ====="
 
-        //             .venv-ci/bin/python -m pip install pip-audit
-
-        //             .venv-ci/bin/python -m pip_audit \
-        //                 -r requirements.txt
-        //         '''
-        //     }
-        // }
 
         stage('Generate version') {
             steps {
@@ -107,35 +96,6 @@ pipeline {
                 '''
             }
         }
-        // stage('Security - Trivy Image Scan') {
-        //     steps {
-        //         sh '''
-        //             docker run --rm \
-        //                 -v /var/run/docker.sock:/var/run/docker.sock \
-        //                 -v "$WORKSPACE:/reports" \
-        //                 aquasec/trivy:latest \
-        //                 image \
-        //                 --severity HIGH,CRITICAL \
-        //                 --format json \
-        //                 --output /reports/trivy-report.json \
-        //                 ${IMAGE_NAME}:${APP_VERSION}
-        //         '''
-
-        //         archiveArtifacts artifacts: 'trivy-report.json'
-        //     }
-        // }
-        // stage('Security - Secrets Scan') {
-        //     steps {
-        //         sh '''
-        //             docker run --rm \
-        //                 -v "$WORKSPACE:/src" \
-        //                 aquasec/trivy:latest \
-        //                 fs \
-        //                 --scanners secret \
-        //                 /src
-        //         '''
-        //     }
-        // }
 
         stage('Deploy') {
             steps {
