@@ -9,8 +9,18 @@ class Operation(str, Enum):
     divide="divide"
 
 class CalculationRequest(BaseModel):
-    a:float
-    b:float
+    a: float = Field(
+        ge=-1_000_000_000,
+        le=1_000_000_000,
+        allow_inf_nan=False,
+    )
+
+    b: float = Field(
+        ge=-1_000_000_000,
+        le=1_000_000_000,
+        allow_inf_nan=False,
+    )
+
     operation: Operation
 
 class CalculationResponse(BaseModel):
