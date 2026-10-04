@@ -148,14 +148,16 @@ pipeline {
         stage('Security - Trivy Image Scan') {
             steps {
                 sh '''
-                    echo "===== Trivy image scan ====="
+                    echo "===== Trivy Security Gate ====="
 
                     docker run --rm \
                         -v /var/run/docker.sock:/var/run/docker.sock \
                         aquasec/trivy:latest \
                         image \
+                        --scanners vuln \
                         --severity HIGH,CRITICAL \
-                        --exit-code 0 \
+                        --ignore-unfixed \
+                        --exit-code 1 \
                         ${IMAGE_NAME}:${APP_VERSION}
                 '''
             }
