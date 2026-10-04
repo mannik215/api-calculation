@@ -108,8 +108,7 @@ pipeline {
 
                 .venv-ci/bin/python -m pip install pip-audit
 
-                .venv-ci/bin/python -m pip_audit \
-                    -r requirements.txt
+                .venv-ci/bin/python -m pip_audit -r requirements.txt
             '''
             }
         }
@@ -143,6 +142,21 @@ pipeline {
                     docker tag \
                         ${IMAGE_NAME}:${APP_VERSION} \
                         ${IMAGE_NAME}:latest
+                '''
+            }
+        }
+        stage('Security - Trivy Image Scan') {
+            steps {
+                sh '''
+                    echo "===== Trivy image scan ====="
+
+                    docker run --rm \
+                        -v /var/run/docker.sock:/var/run/docker.sock \
+                        aquasec/trivy:latest \
+                        image \
+                        --severity HIGH,CRITICAL \
+                        --exit-code 0 \
+                        ${IMAGE_NAME}:${APP_VERSION}
                 '''
             }
         }
