@@ -101,6 +101,18 @@ pipeline {
                 '''
             }
         }
+        stage('Security - Dependency Audit') {
+            steps {
+            sh '''
+                echo "===== Python dependency audit ====="
+
+                .venv-ci/bin/python -m pip install pip-audit
+
+                .venv-ci/bin/python -m pip_audit \
+                    -r requirements.txt
+            '''
+            }
+        }
 
 
         stage('Generate version') {
