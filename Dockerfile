@@ -1,6 +1,11 @@
 FROM python:3.12-slim
 
+RUN apt-get update \
+    && apt-get upgrade -y \
+    && rm -rf /var/lib/apt/lists/*
+    
 WORKDIR /app
+
 
 RUN groupadd -r appgroup && useradd -r -g appgroup appuser
 
@@ -13,7 +18,6 @@ COPY app ./app
 COPY VERSION ./VERSION
 
 RUN chown -R appuser:appgroup /app
-
 
 USER appuser
 
