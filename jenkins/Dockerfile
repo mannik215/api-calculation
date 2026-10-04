@@ -12,6 +12,7 @@ RUN apt-get update \
         ca-certificates \
         curl \
         gosu \
+        docker-ce-cli \
     && rm -rf /var/lib/apt/lists/*
 
 
@@ -29,6 +30,7 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends docker-ce-cli \
     && rm -rf /var/lib/apt/lists/*
 
+    
 COPY entrypoint.sh /usr/local/bin/custom-entrypoint.sh
 
 RUN chmod +x /usr/local/bin/custom-entrypoint.sh
