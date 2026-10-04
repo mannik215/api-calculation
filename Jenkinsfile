@@ -162,6 +162,28 @@ pipeline {
                 '''
             }
         }
+        stage('Security - Trivy Report') {
+            steps {
+                sh '''
+                    echo "===== Creating Trivy report ====="
+
+                    docker run --rm \
+                        -v /var/run/docker.sock:/var/run/docker.sock \
+                        aquasec/trivy:latest \
+                        image \
+                        --scanners vuln \
+                        --severity HIGH,CRITICAL \
+                        --format json \
+                        ${IMAGE_NAME}:${APP_VERSION} \
+                        > trivy-report.json
+                '''
+
+                archiveArtifacts(
+                    artifacts: 'trivy-report.json',
+                    fingerprint: true
+                )
+            }
+        }
 
         stage('Deploy') {
             steps {
