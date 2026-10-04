@@ -54,8 +54,46 @@ pipeline {
                 sh '''
                     echo "===== Semgrep SAST ====="
 
+                    VOLUME="semgrep-source-${BUILD_NUMBER}"
+                    COPY_CONTAINER="semgrep-copy-${BUILD_NUMBER}"
+
+                    # Эта функция будет вызвана при завершении shell-скрипта
+                    # независимо от SUCCESS или FAILURE.
+                    cleanup() {
+                        echo "===== Semgrep cleanup ====="
+
+                        docker rm -f "$COPY_CONTAINER" 2>/dev/null || true
+                        docker volume rm "$VOLUME" 2>/dev/null || true
+                    }
+
+                    # Регистрируем функцию очистки.
+                    trap cleanup EXIT
+
+
+                    echo "===== Creating temporary volume ====="
+
+                    docker volume create "$VOLUME"
+
+
+                    echo "===== Copying source code ====="
+
+                    # alpine используется только как временный контейнер,
+                    # через который мы получаем доступ к Docker volume.
+                    docker create \
+                        --name "$COPY_CONTAINER" \
+                        -v "$VOLUME:/src" \
+                        alpine
+
+                    # Копируем исходники из Jenkins workspace.
+                    docker cp \
+                        app/. \
+                        "$COPY_CONTAINER:/src/app/"
+
+
+                    echo "===== Running Semgrep ====="
+
                     docker run --rm \
-                        -v "$WORKSPACE:/src" \
+                        -v "$VOLUME:/src" \
                         semgrep/semgrep \
                         semgrep scan \
                         --config auto \
