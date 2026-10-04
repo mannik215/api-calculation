@@ -34,6 +34,7 @@ def get_version() -> str:
 app = FastAPI(
     title="Calculator API",
     version=get_version(),
+    docs_url="/docs", 
 )
 
 
